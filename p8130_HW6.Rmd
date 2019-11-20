@@ -46,13 +46,27 @@ birthweight = read_csv("./data/birthweight.csv")%>%janitor::clean_names()
 race_fctr_lv = c("White", "Black", "Asian", "Puerto Rican", "Other", "Unknown")
 
 
-birthweight%>%
+
+birthweight = read_csv("./data/birthweight.csv")%>%janitor::clean_names()%>%
   ###Recode the factors
-  mutate(babysex = recode_factor(babysex, `1` = "male" , `2` = "female"),
+  mutate(bwt =bwt , 
+    babysex = recode_factor(babysex, `1` = "male" , `2` = "female"),
          malform = recode_factor(malform, `1` = "present" , `0` = "absent"),
                 frace = forcats::fct_reorder(factor(race_fctr_lv[frace]),frace),
-               mrace = forcats::fct_reorder(factor(race_fctr_lv[mrace]),mrace))
+               mrace = forcats::fct_reorder(factor(race_fctr_lv[mrace]),mrace))%>%select(bwt,babysex,mrace,frace,malform,blength:wtgain)%>%mutate(id=seq(1,4342))
 
+###Have a look on the relationships of birthweight to other variable.
+birthweight_vis = birthweight%>% pivot_longer(names_to = "para", values_to = "value" , cols =  blength:wtgain  )
+
+birthweight_vis%>%ggplot(aes(x=bwt,y = value))+geom_point()+facet_grid(rows = "para",scales = "free",space = "fix")
+
+
+birthweight%>%ggplot(aes(x=bwt,y = .[[3]]))+geom_point()
+
+
+cn<-as.list(colnames(birthweight))
+
+?facet_grid
 ```
 
 
@@ -62,7 +76,8 @@ Propose a regression model for birthweight. This model may be based on a hypothe
 __Answer__ 
 
 ```{r}
-
+birthweight
+  
 ```
 
 
@@ -70,20 +85,31 @@ __Answer__
 Compare your model to two others:
 
 One using length at birth and gestational age as predictors (main effects only)
+```{r}
+
+model_ref1<-birthweight%>%lm(bwt~gaweeks+blength ,data = .)
+model_ref1%>%broom::tidy()
+```
+
 One using head circumference, length, sex, and all interactions (including the three-way interaction) between these
+```{r}
+#model_ref2<-birthweight%>%lm(bwt~blength+bhead+babysex+blength*bhead+babysex*blength+bhead*babysex+blength*bhead*babysex,data = .)
+#model_ref2%>%broom::tidy()
+```
+
 Make this comparison in terms of the cross-validated prediction error; use crossv_mc and functions in purrr as appropriate.
+```{r}
+
+```
 
 Note that although we expect your model to be reasonable, model building itself is not a main idea of the course and we don’t necessarily expect your model to be “optimal”.
 
 
 
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r cars}
-summary(cars)
+#summary(cars)
 ```
 
 ## Including Plots
@@ -91,7 +117,7 @@ summary(cars)
 You can also embed plots, for example:
 
 ```{r pressure, echo=FALSE}
-plot(pressure)
+#plot(pressure)
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
