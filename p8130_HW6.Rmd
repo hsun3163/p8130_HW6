@@ -1,0 +1,97 @@
+---
+title: "hw6"
+author: "Hao Sun"
+date: "11/19/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("tidyverse")
+library(modelr)
+library(mgcv)
+```
+
+## Problem 1
+
+In this problem, you will analyze data gathered to understand the effects of several variables on a child’s birthweight. This dataset, available here, consists of roughly 4000 children and includes the following variables:
+
+babysex: baby’s sex (male = 1, female = 2)
+bhead: baby’s head circumference at birth (centimeters)
+blength: baby’s length at birth (centimeteres)
+bwt: baby’s birth weight (grams)
+delwt: mother’s weight at delivery (pounds)
+fincome: family monthly income (in hundreds, rounded)
+frace: father’s race (1 = White, 2 = Black, 3 = Asian, 4 = Puerto Rican, 8 = Other, 9 = Unknown)
+gaweeks: gestational age in weeks
+malform: presence of malformations that could affect weight (0 = absent, 1 = present)
+menarche: mother’s age at menarche (years)
+mheigth: mother’s height (inches)
+momage: mother’s age at delivery (years)
+mrace: mother’s race (1 = White, 2 = Black, 3 = Asian, 4 = Puerto Rican, 8 = Other)
+parity: number of live births prior to this pregnancy
+pnumlbw: previous number of low birth weight babies
+pnumgsa: number of prior small for gestational age babies
+ppbmi: mother’s pre-pregnancy BMI
+ppwt: mother’s pre-pregnancy weight (pounds)
+smoken: average number of cigarettes smoked per day during pregnancy
+wtgain: mother’s weight gain during pregnancy (pounds)
+
+
+Load and clean the data for regression analysis (i.e. convert numeric to factor where appropriate, check for missing data, etc.).
+
+```{r}
+birthweight = read_csv("./data/birthweight.csv")%>%janitor::clean_names()
+
+race_fctr_lv = c("White", "Black", "Asian", "Puerto Rican", "Other", "Unknown")
+
+
+birthweight%>%
+  ###Recode the factors
+  mutate(babysex = recode_factor(babysex, `1` = "male" , `2` = "female"),
+         malform = recode_factor(malform, `1` = "present" , `0` = "absent"),
+                frace = forcats::fct_reorder(factor(race_fctr_lv[frace]),frace),
+               mrace = forcats::fct_reorder(factor(race_fctr_lv[mrace]),mrace))
+
+```
+
+
+
+Propose a regression model for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model residuals against fitted values – use add_predictions and add_residuals in making this plot.
+
+__Answer__ 
+
+```{r}
+
+```
+
+
+
+Compare your model to two others:
+
+One using length at birth and gestational age as predictors (main effects only)
+One using head circumference, length, sex, and all interactions (including the three-way interaction) between these
+Make this comparison in terms of the cross-validated prediction error; use crossv_mc and functions in purrr as appropriate.
+
+Note that although we expect your model to be reasonable, model building itself is not a main idea of the course and we don’t necessarily expect your model to be “optimal”.
+
+
+
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
