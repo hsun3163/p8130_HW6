@@ -2,7 +2,7 @@
 title: "hw6"
 author: "Hao Sun"
 date: "11/19/2019"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
@@ -53,20 +53,23 @@ birthweight = read_csv("./data/birthweight.csv")%>%janitor::clean_names()%>%
     babysex = recode_factor(babysex, `1` = "male" , `2` = "female"),
          malform = recode_factor(malform, `1` = "present" , `0` = "absent"),
                 frace = forcats::fct_reorder(factor(race_fctr_lv[frace]),frace),
-               mrace = forcats::fct_reorder(factor(race_fctr_lv[mrace]),mrace))%>%select(bwt,babysex,mrace,frace,malform,blength:wtgain)%>%mutate(id=seq(1,4342))
+               mrace = forcats::fct_reorder(factor(race_fctr_lv[mrace]),mrace))%>%select(bwt,babysex,mrace,frace,malform,bhead,blength:wtgain)%>%mutate(id=seq(1,4342))
+
 
 ###Have a look on the relationships of birthweight to other variable.
-birthweight_vis = birthweight%>% pivot_longer(names_to = "para", values_to = "value" , cols =  blength:wtgain  )
-
-birthweight_vis%>%ggplot(aes(x=bwt,y = value))+geom_point()+facet_grid(rows = "para",scales = "free",space = "fix")
-
-
-birthweight%>%ggplot(aes(x=bwt,y = .[[3]]))+geom_point()
+birthweight_vis_1 = birthweight%>% pivot_longer(names_to = "para", values_to = "value" , cols =  bhead:fincome  )
+birthweight_vis_2 = birthweight%>% pivot_longer(names_to = "para", values_to = "value" , cols =  gaweeks:momage  )
+birthweight_vis_3 = birthweight%>% pivot_longer(names_to = "para", values_to = "value" , cols =  parity:ppbmi  )
+birthweight_vis_4 = birthweight%>% pivot_longer(names_to = "para", values_to = "value" , cols =  ppwt:id  )
 
 
-cn<-as.list(colnames(birthweight))
+birthweight_vis_1%>%ggplot(aes(x=bwt,y = value))+geom_smooth()+geom_point(alpha = 0.2)+facet_grid(rows = "para",scales = "free",space = "fix")
+birthweight_vis_2%>%ggplot(aes(x=bwt,y = value))+geom_smooth()+geom_point(alpha = 0.2)+facet_grid(rows = "para",scales = "free",space = "fix")
+birthweight_vis_3%>%ggplot(aes(x=bwt,y = value))+geom_smooth()+geom_point(alpha = 0.2)+facet_grid(rows = "para",scales = "free",space = "fix")
+birthweight_vis_4%>%ggplot(aes(x=bwt,y = value))+geom_smooth()+geom_point(alpha = 0.2)+facet_grid(rows = "para",scales = "free",space = "fix")
 
-?facet_grid
+
+
 ```
 
 
@@ -74,10 +77,19 @@ cn<-as.list(colnames(birthweight))
 Propose a regression model for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model residuals against fitted values – use add_predictions and add_residuals in making this plot.
 
 __Answer__ 
+By looking at the scatterpoint graph of birthweight vs other indicators, a selection of indicators was chosen. Besides, family income was included as there is research suggesting family income is correlated with birthweight
 
 ```{r}
-birthweight
-  
+colnames(birthweight)
+
+reg_bwt <- lm(bwt~blength+fincome+gaweeks+wtgain+bhead*babysex+mrace+frace,data = birthweight)
+
+reg_bwt%>%summary()
+
+birthweight_rp <-birthweight%>%modelr::add_residuals(reg_bwt)%>%modelr::add_predictions(reg_bwt)
+
+birthweight_rp%>%ggplot(aes(x=pred,y=resid))+geom_point()
+
 ```
 
 
@@ -88,36 +100,117 @@ One using length at birth and gestational age as predictors (main effects only)
 ```{r}
 
 model_ref1<-birthweight%>%lm(bwt~gaweeks+blength ,data = .)
-model_ref1%>%broom::tidy()
+model_ref1%>%summary()
 ```
 
 One using head circumference, length, sex, and all interactions (including the three-way interaction) between these
 ```{r}
-#model_ref2<-birthweight%>%lm(bwt~blength+bhead+babysex+blength*bhead+babysex*blength+bhead*babysex+blength*bhead*babysex,data = .)
-#model_ref2%>%broom::tidy()
+model_ref2<-birthweight%>%lm(bwt~blength+bhead+babysex+blength*bhead+babysex*blength+bhead*babysex+blength*bhead*babysex,data = .)
+model_ref2%>%summary()
 ```
 
 Make this comparison in terms of the cross-validated prediction error; use crossv_mc and functions in purrr as appropriate.
 ```{r}
+cv_df = 
+  crossv_mc(birthweight, 100)
 
+cv_df = 
+  cv_df %>% 
+  mutate(reg_bwt  = map(train, ~lm(bwt~blength+fincome+gaweeks+wtgain+bhead*babysex+mrace+frace,data = .)),
+         model_ref1  = map(train, ~lm(bwt~gaweeks+blength ,data = .)),
+         model_ref2  = map(train, ~lm(bwt~blength+bhead+babysex+blength*bhead+babysex*blength+bhead*babysex+blength*bhead*babysex,data = .)))%>% 
+  mutate(rmse_reg_bwt = map2_dbl(reg_bwt, test, ~rmse(model = .x, data = .y)),
+         rmse_model_ref1 = map2_dbl(model_ref1, test, ~rmse(model = .x, data = .y)),
+         rmse_model_ref2 = map2_dbl(model_ref2, test, ~rmse(model = .x, data = .y)))
+
+
+cv_df %>% 
+  select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model", 
+    values_to = "rmse",
+    names_prefix = "rmse_") %>% 
+  mutate(model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
 ```
 
 Note that although we expect your model to be reasonable, model building itself is not a main idea of the course and we don’t necessarily expect your model to be “optimal”.
+__Answer__
+As it occured, the model construsted by me outperform the two given model as it have less cross-validated prediction error 
 
 
+### Problem 2
 
+For this problem, we’ll use the 2017 Central Park weather data that we’ve seen elsewhere. The code chunk below (adapted from the course website) will download these data.
 
+```{r}
 
-```{r cars}
-#summary(cars)
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
 
-```{r pressure, echo=FALSE}
-#plot(pressure)
+The boostrap is helpful when you’d like to perform inference for a parameter / value / summary that doesn’t have an easy-to-write-down distribution in the usual repeated sampling framework. We’ll focus on a simple linear regression with tmax as the response and tmin as the predictor, and are interested in the distribution of two quantities estimated from these data:
+
+r̂2 log(β̂0∗β̂1)
+
+Use 5000 bootstrap samples and, for each bootstrap sample, produce estimates of these two quantities. Plot the distribution of your estimates, and describe these in words. 
+
+```{r}
+
+boot_straps = 
+  weather_df %>% 
+  modelr::bootstrap(n = 5000)
+
+logbeta = function(df){log(df[[1,2]]*df[[2,2]])}
+rsquare = function(df){pull(df,"r.squared")}
+
+bs_result = boot_straps%>%
+mutate(
+    models = map(strap, ~lm(tmax ~ tmin, data = .x) ))
+
+bs_result=bs_result %>%mutate(
+    result =  map(models, broom::tidy),
+    results_logbeta = map_dbl(result, logbeta),
+   results_r2 = map(models, broom::glance),
+    results_r2 = map_dbl(results_r2,.%>%pull(r.squared)))
+    
+  
+
+bs_result=bs_result%>%select(-strap,-models,-result)
+bs_result%>%pivot_longer(names_to = "para", values_to = "value", cols = results_logbeta:results_r2)%>%
+  ggplot()+geom_density(aes(x = value ,color = para) )+facet_grid(~para,scales = "free")
+
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+Using the 5000 bootstrap estimates, identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval for
+r̂2 and log(β̂0∗β̂1)
+
+
+__Answer__
+The 95% confidence interval for log(β̂0∗β̂1) is as followed
+ 
+```{r}
+pull(bs_result,results_logbeta)%>%quantile( probs = c(2.5,97.5)/100)
+```
+ The 95% confidence interval for r̂^2 is as followed
+```{r}
+pull(bs_result,results_r2)%>%quantile( probs = c(2.5,97.5)/100)
+```
+
+
+
